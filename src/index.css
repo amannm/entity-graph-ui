@@ -1,0 +1,34 @@
+* {
+    box-sizing: border-box;
+}
+
+html, body, #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: small;
+}
+
+.EntityList {
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+}
+
+.EntityList > * {
+    padding: 0 1em;
+    cursor: pointer;
+}
+
+li.selected {
+    background: yellow;
+}
+
+.EntityProperties > * {
+    display: block;
+}
