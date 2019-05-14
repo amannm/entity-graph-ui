@@ -9,26 +9,100 @@ html, body, #root {
     padding: 0;
 }
 
+
+ul {
+    margin: 0;
+    padding: 0;
+}
+
+p {
+    margin: 0.4em;
+}
+
 body {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: small;
 }
+.EditorContainer {
+    background: #e4e4e4;
+    padding: 0.5em;
+}
+.EditorContainer > * {
+    margin-bottom: 0.5em;
+}
+.EditorContainer > *:last-child {
+    margin-bottom: 0;
+}
+.WorkspaceEditor {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: white;
+}
+.WorkspaceEditor > * {
+    margin: 0.4em;
+    padding: 0.4em;
+}
 
 .EntityList {
+    flex-grow: 1;
     display: flex;
     flex-wrap: wrap;
     list-style: none;
+    flex-direction: row-reverse;
 }
 
 .EntityList > * {
-    padding: 0 1em;
+    margin: 0.4em;
+    padding: 0 0.3em;
+    background: aliceblue;
     cursor: pointer;
 }
 
-li.selected {
+.EntityList .selected {
     background: yellow;
+    transition: background-color ease-out 0.2s;
 }
 
-.EntityProperties > * {
+.EntityListControls > * {
     display: block;
+}
+
+.EntityListControls {
+    align-self: flex-start;
+}
+
+.EntityListControls > * {
+    width: 100%;
+    margin-bottom: 0.8em;
+}
+
+.EntityProperties {
+    flex-basis: 300px;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.EntityProperties > div {
+    display: flex;
+    margin-top: 0.5em;
+}
+.EntityProperties > p {
+    display: block;
+    margin-bottom: 1em;
+    color: #787878;
+}
+.EntityProperties > div > *:last-child {
+    align-self: center;
+    margin-left: 1em;
+    font-size: smaller;
+}
+.EntityProperties > div > *:first-child {
+    flex-grow: 1;
+    text-align: left;
+    padding: 0.2em;
+    margin: 0.1em;
+    border: 0;
+    border-bottom: 1px dotted lightgrey;
 }

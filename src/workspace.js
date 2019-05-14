@@ -17,7 +17,8 @@ class WorkspaceEditor extends React.Component {
 
     constructor(props) {
         super(props);
-        const entities = EntityManager.getAll(props.entityType.id);
+        let entities = EntityManager.getAll(props.entityType.id);
+        entities = EntityManager.dedupe(entities, props.entityType.idProperty);
         const selectedEntityId = entities.length > 0 ? entities[0][props.entityType.idProperty] : null;
         this.state = {
             selectedEntityId: selectedEntityId,
@@ -154,9 +155,9 @@ class WorkspaceEditor extends React.Component {
         });
 
         return E("div", {className: "WorkspaceEditor"},
-            entityListControls,
+            entityEditor,
             entityList,
-            entityEditor
+            entityListControls
         )
     }
 }
@@ -217,8 +218,9 @@ class EntityProperties extends React.Component {
     }
 
     render() {
+
         var entityType = this.props.entityType;
-        var inputs = Object.keys(entityType.properties).map(property => {
+        var inputMapper = (property) => {
             const handler = (event) => {
                 this.handlePropertyChange(property, event.target.value);
             };
@@ -226,12 +228,12 @@ class EntityProperties extends React.Component {
             const currentValue = this.props.entity[property];
             switch (datatype) {
                 case "text":
-                    return E("textarea", {key: property, value: currentValue, onChange: handler});
+                    return E("textarea", {value: currentValue, onChange: handler});
                 case "string":
                 case "uri":
-                    return E("input", {key: property, type: "text", value: currentValue, onChange: handler});
+                    return E("input", {type: "text", value: currentValue, onChange: handler});
                 case "integer":
-                    return E("input", {key: property, type: "number", value: currentValue, onChange: handler});
+                    return E("input", {type: "number", value: currentValue, onChange: handler});
                 case "timestamp":
                     const timestampHandler = (event) => {
                         if(event.target.value) {
@@ -241,11 +243,15 @@ class EntityProperties extends React.Component {
                         }
                     };
                     const dateTimeLocalString = new Date(currentValue).toISOString().slice(0, -1);
-                    return E("input", {key: property, type: "datetime-local", value: dateTimeLocalString, onChange: timestampHandler});
+                    return E("input", {key: property, type: "datetime-local", step: 1, value: dateTimeLocalString, onChange: timestampHandler});
                 default:
                     throw 'unknown datatype: ' + datatype;
             }
+        };
+        var inputs = Object.keys(entityType.properties).map(property => {
+            return E("div", {key: property}, inputMapper(property), E("p", null, property));
         });
+        inputs.unshift(E('p', {key: entityType.idProperty}, this.props.entity[entityType.idProperty]));
         return E('div', {className: "EntityProperties"}, inputs);
     }
 

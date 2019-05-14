@@ -47,6 +47,20 @@ class EntityManager {
         };
     }
 
+    static dedupe(entityList, idKey) {
+        const results = {};
+        return entityList.map(e => {
+            const id = e[idKey];
+            if(!(id in results)) {
+                results[id] = e;
+                return e;
+            } else {
+                return null;
+            }
+
+        }).filter(e => e !== null);
+    }
+
     static getAll(entityType) {
         switch (entityType) {
             case 'user':
