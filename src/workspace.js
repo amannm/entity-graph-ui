@@ -8,22 +8,65 @@ class EditorContainer extends React.Component {
             key: entityTypeId,
             entityType: entityTypeMap[entityTypeId]
         }));
-        return E("div", {className: "EditorContainer"}, items)
+        return E("div", null, E("div", {className: "EditorContainer"}, items));
     }
 }
 
+class QueryContainer extends React.Component {
+    constructor(props) {
+        super(props);
+        this.handleQuerySubmit = this.handleQuerySubmit.bind(this);
+    }
 
+    handleQuerySubmit(queryString) {
+
+    }
+
+    render() {
+        return E("div", {className: "QueryContainer"},
+            E(QueryResults, {className: "QueryResults"}),
+            E(QueryEditor, {className: "QueryEditor"})
+        );
+    }
+}
+class QueryEditor extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+
+    render() {
+        return E("textarea", {onChange: (event) => this.props.handleQuerySubmit(event.target.value)});
+    }
+}
+class QueryResults extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+
+    render() {
+        return E("div", {className: "QueryContainer"},
+            E(QueryResults, {className: "QueryResults"}),
+            E(QueryEditor, {className: "QueryEditor"})
+        );
+    }
+}
 class WorkspaceEditor extends React.Component {
 
     constructor(props) {
         super(props);
-        let entities = EntityManager.getAll(props.entityType.id);
-        entities = EntityManager.dedupe(entities, props.entityType.idProperty);
-        const selectedEntityId = entities.length > 0 ? entities[0][props.entityType.idProperty] : null;
         this.state = {
-            selectedEntityId: selectedEntityId,
-            entities: entities
+            selectedEntityId: null,
+            entities: [],
+            lockedEntityIds: new Set()
         };
+        EntityManager.getAll(props.entityType, (rawEntities) => {
+            const entities = EntityManager.dedupe(rawEntities, props.entityType.idProperty);
+            const selectedEntityId = entities.length > 0 ? entities[0][props.entityType.idProperty] : null;
+            this.setState({
+                selectedEntityId: selectedEntityId,
+                entities: entities
+            }, null);
+        });
         this.handleEntityCreate = this.handleEntityCreate.bind(this);
         this.handleEntityDelete = this.handleEntityDelete.bind(this);
         this.handleEntityUpdate = this.handleEntityUpdate.bind(this);
@@ -31,10 +74,9 @@ class WorkspaceEditor extends React.Component {
     }
 
     handleEntityCreate() {
-
             const entityType = this.props.entityType;
 
-            const newId = EntityManager.nextId();
+            const newId = EntityManager.generateId();
             const newEntity = {};
             newEntity[entityType.idProperty] = newId;
             Object.keys(entityType.properties).forEach(property => {
@@ -43,16 +85,16 @@ class WorkspaceEditor extends React.Component {
                     case "text":
                     case "string":
                         if (entityType.summaryProperties.includes(property)) {
-                            newEntity[property] = "New " + property;
+                            newEntity[property] = "Unknown " + property;
                         } else {
-                            newEntity[property] = property + '-' + newId;
+                            newEntity[property] = 'unknown';
                         }
                         break;
                     case "uri":
-                        newEntity[property] = property + '-' + newId;
+                        newEntity[property] = 'unknown';
                         break;
                     case "integer":
-                        newEntity[property] = 1337;
+                        newEntity[property] = 0;
                         break;
                     case "timestamp":
                         newEntity[property] = (new Date()).toISOString();
@@ -61,67 +103,94 @@ class WorkspaceEditor extends React.Component {
                         throw 'unknown datatype: ' + datatype;
                 }
             });
-            let indexToInsertAt = this.state.entities.length;
-            if(this.state.selectedEntityId !== null) {
-                indexToInsertAt = this.state.entities.findIndex(entity => this.state.selectedEntityId === entity[entityType.idProperty])
-                if(indexToInsertAt < this.state.entities.length) {
-                    indexToInsertAt++;
-                }
-            }
-            const newEntities = this.state.entities.filter(() => true);
-            newEntities.splice(indexToInsertAt, 0, newEntity);
 
-            this.setState({
-                selectedEntityId: newId,
-                entities: newEntities
-            }, null);
+            EntityManager.put(entityType, newEntity, ()=>{
+                let indexToInsertAt = this.state.entities.length;
+                if(this.state.selectedEntityId !== null) {
+                    indexToInsertAt = this.state.entities.findIndex(entity => this.state.selectedEntityId === entity[entityType.idProperty])
+                    if(indexToInsertAt < this.state.entities.length) {
+                        indexToInsertAt++;
+                    }
+                }
+                const newEntities = this.state.entities.filter(() => true);
+                newEntities.splice(indexToInsertAt, 0, newEntity);
+                this.setState({
+                    selectedEntityId: newId,
+                    entities: newEntities
+                }, null);
+            });
 
     }
 
     handleEntityDelete() {
         if (this.state.selectedEntityId !== null) {
-            let indexToSelect = null;
-            const newEntities = [];
+            if(this.state.lockedEntityIds.has(this.state.selectedEntityId)) {
+                return;
+            }
+            this.setState({
+                lockedEntityIds: (new Set(this.state.lockedEntityIds)).add(this.state.selectedEntityId)
+            }, null);
             const entityType = this.props.entityType;
-            for(let i = 0; i < this.state.entities.length; i++) {
-                const entity = this.state.entities[i];
-                if(entity[entityType.idProperty] !== this.state.selectedEntityId) {
-                    newEntities.push(entity);
-                } else {
-                    if(this.state.entities.length !== 1) {
-                        if(i === 0) {
-                            indexToSelect = i;
-                        } else {
-                            indexToSelect = i - 1;
+            EntityManager.delete(entityType, this.state.selectedEntityId, () => {
+                let indexToSelect = null;
+                const newEntities = [];
+                for(let i = 0; i < this.state.entities.length; i++) {
+                    const entity = this.state.entities[i];
+                    if(entity[entityType.idProperty] !== this.state.selectedEntityId) {
+                        newEntities.push(entity);
+                    } else {
+                        if(this.state.entities.length !== 1) {
+                            if(i === 0) {
+                                indexToSelect = i;
+                            } else {
+                                indexToSelect = i - 1;
+                            }
                         }
                     }
                 }
-            }
-            let nextEntityId = null;
-            if(indexToSelect !== null) {
-                nextEntityId = newEntities[indexToSelect][entityType.idProperty];
-            }
-            this.setState({
-                selectedEntityId: nextEntityId,
-                entities: newEntities
-            }, null);
+                let nextEntityId = null;
+                if(indexToSelect !== null) {
+                    nextEntityId = newEntities[indexToSelect][entityType.idProperty];
+                }
+                const newLockedEntityIds = new Set(this.state.lockedEntityIds);
+                newLockedEntityIds.delete(this.state.selectedEntityId);
+                this.setState({
+                    selectedEntityId: nextEntityId,
+                    entities: newEntities,
+                    lockedEntityIds: newLockedEntityIds
+                }, null);
+            });
         }
     }
 
     handleEntityUpdate(newEntity) {
+        const entityType = this.props.entityType;
+        const entityId = newEntity[entityType.idProperty];
+
         if (this.state.selectedEntityId !== null) {
-            const entityType = this.props.entityType;
-            const entityId = newEntity[entityType.idProperty];
-            const newEntities = this.state.entities.map(existingEntity => {
-                if (existingEntity[entityType.idProperty] === entityId) {
-                    return newEntity;
-                } else {
-                    return existingEntity;
-                }
-            });
+            if(this.state.lockedEntityIds.has(entityId)) {
+                return;
+            }
+
             this.setState({
-                entities: newEntities
+                lockedEntityIds: (new Set(this.state.lockedEntityIds)).add(entityId)
             }, null);
+
+            EntityManager.put(entityType, newEntity, () => {
+                const newEntities = this.state.entities.map(existingEntity => {
+                    if (existingEntity[entityType.idProperty] === entityId) {
+                        return newEntity;
+                    } else {
+                        return existingEntity;
+                    }
+                });
+                const newLockedEntityIds = new Set(this.state.lockedEntityIds);
+                newLockedEntityIds.delete(this.state.selectedEntityId);
+                this.setState({
+                    entities: newEntities,
+                    lockedEntityIds: newLockedEntityIds
+                }, null);
+            });
         }
     }
 
@@ -136,6 +205,7 @@ class WorkspaceEditor extends React.Component {
     render() {
 
         const entityListControls = E("div", {className: "EntityListControls"},
+            E("p", null, this.props.entityType.displayName),
             E("button", {type: "button", onClick: this.handleEntityCreate}, "Create"),
             E("button", {type: "button", onClick: this.handleEntityDelete}, "Delete")
         );
@@ -144,6 +214,7 @@ class WorkspaceEditor extends React.Component {
             entityType: this.props.entityType,
             selectedEntityId: this.state.selectedEntityId,
             entities: this.state.entities,
+            lockedEntityIds: this.state.lockedEntityIds,
             handleEntitySelect: this.handleEntitySelect
         });
 
@@ -151,6 +222,7 @@ class WorkspaceEditor extends React.Component {
             entityType: this.props.entityType,
             selectedEntityId: this.state.selectedEntityId,
             entities: this.state.entities,
+            lockedEntityIds: this.state.lockedEntityIds,
             handleEntityUpdate: this.handleEntityUpdate
         });
 
@@ -170,13 +242,19 @@ class EntityList extends React.Component {
             const idProperty = entityType.idProperty;
             const itemMapper = (entity) => {
                 const entityId = entity[idProperty];
-                const className = entityId === this.props.selectedEntityId ? "selected" : null;
+                const classNames = [];
+                if(entityId === this.props.selectedEntityId) {
+                    classNames.push("selected");
+                }
+                if(this.props.lockedEntityIds.has(entityId)) {
+                    classNames.push("locked");
+                }
                 const clickHandler = (event) => {
                     this.props.handleEntitySelect(entityId)
                 };
                 return {
                     key: entityId,
-                    className: className,
+                    className: classNames.join(" "),
                     onClick: clickHandler
                 };
             };
@@ -197,6 +275,7 @@ class EntityEditor extends React.Component {
             return E(EntityProperties, {
                 entityType: this.props.entityType,
                 entity: currentEntity,
+                isLocked: this.props.lockedEntityIds.has(currentEntity[this.props.entityType.idProperty]),
                 handleEntityUpdate: this.props.handleEntityUpdate
             });
         }
@@ -228,22 +307,14 @@ class EntityProperties extends React.Component {
             const currentValue = this.props.entity[property];
             switch (datatype) {
                 case "text":
-                    return E("textarea", {value: currentValue, onChange: handler});
+                    return E("textarea", {disabled: this.props.isLocked, value: currentValue, onChange: handler});
                 case "string":
                 case "uri":
-                    return E("input", {type: "text", value: currentValue, onChange: handler});
+                    return E("input", {type: "text", disabled: this.props.isLocked, value: currentValue, onChange: handler});
                 case "integer":
-                    return E("input", {type: "number", value: currentValue, onChange: handler});
+                    return E("input", {type: "number", disabled: this.props.isLocked, value: currentValue, onChange: handler});
                 case "timestamp":
-                    const timestampHandler = (event) => {
-                        if(event.target.value) {
-                            const timestamp = new Date(event.target.value).toISOString().toString();
-                            console.log(timestamp);
-                            this.handlePropertyChange(property, timestamp);
-                        }
-                    };
-                    const dateTimeLocalString = new Date(currentValue).toISOString().slice(0, -1);
-                    return E("input", {key: property, type: "datetime-local", step: 1, value: dateTimeLocalString, onChange: timestampHandler});
+                    return E("input", {key: property, type: "text", disabled: this.props.isLocked, value: currentValue, onChange: handler});
                 default:
                     throw 'unknown datatype: ' + datatype;
             }

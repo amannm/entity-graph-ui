@@ -47,6 +47,11 @@ class EntityManager {
         };
     }
 
+    static queryGraph(queryString, resultHandler) {
+
+    }
+
+
     static dedupe(entityList, idKey) {
         const results = {};
         return entityList.map(e => {
@@ -61,7 +66,97 @@ class EntityManager {
         }).filter(e => e !== null);
     }
 
-    static getAll(entityType) {
+    static get(url, successHandler) {
+        const request = new XMLHttpRequest();
+        request.open("GET", url, true);
+        request.onload = () => {
+            switch (request.status) {
+                case 200:
+                    const object = JSON.parse(request.responseText);
+                    successHandler(object);
+                    break;
+                case 404:
+                default:
+                    throw 'unexpected response code: ' + request.status;
+            }
+        };
+        request.send();
+    }
+
+    static put(entityType, entity, successHandler) {
+        const putUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entity[entityType.idProperty];
+        const jsonString = JSON.stringify(entity);
+        const request = new XMLHttpRequest();
+        request.open("PUT", putUrl, true);
+        request.setRequestHeader('Content-Type','application/json');
+        request.onload = () => {
+            switch (request.status) {
+                case 200:
+                case 201:
+                    successHandler();
+                    break;
+                default:
+                    throw 'unexpected response code: ' + request.status;
+            }
+        };
+        request.send(jsonString);
+    }
+
+    static delete(entityType, entityId, successHandler) {
+        const deleteUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entityId;
+        const request = new XMLHttpRequest();
+        request.open("DELETE", deleteUrl, true);
+        request.onload = () => {
+            switch (request.status) {
+                case 204:
+                    successHandler();
+                    break;
+                default:
+                    throw 'unexpected response code: ' + request.status;
+            }
+        };
+        request.send();
+    }
+
+
+    static getAll(entityType, resultHandler) {
+        const listUrl = "http://localhost:8080/graph/" + entityType.id + "s";
+        let entityCount = 0;
+        const result = [];
+        this.get(listUrl, (array) => {
+            if(array === null || array.length === 0) {
+                resultHandler([]);
+            }
+            entityCount = array.length;
+            array.forEach((item) => {
+                const entityId = item[entityType.idProperty];
+                this.get(listUrl + "/" + entityId, (entity) => {
+                    if(entity !== null) {
+                        result.push(entity);
+                    }
+                    entityCount--;
+                    if(entityCount === 0) {
+                        resultHandler(result);
+                    }
+                });
+            })
+
+        });
+    }
+
+    static debounce(callback, wait) {
+        let timeout = null;
+        return function() {
+            const next = () => callback.apply(this, arguments);
+            clearTimeout(timeout);
+            timeout = setTimeout(next, wait);
+            if (!timeout) {
+                next()
+            }
+        }
+    }
+
+    static getAllTest(entityType) {
         switch (entityType) {
             case 'user':
                 return [
@@ -218,13 +313,19 @@ class EntityManager {
             default:
                 throw 'unsupported entity type: ' + entityType;
         }
-
     }
 
     static nextId() {
         const id = _nextId;
         _nextId = _nextId + 1;
         return id;
+    }
+
+    //https://gist.github.com/jed/982883
+    static generateId() {
+        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        )
     }
 
 }

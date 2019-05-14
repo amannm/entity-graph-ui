@@ -38,7 +38,8 @@ body {
     flex-wrap: nowrap;
     justify-content: space-between;
     align-items: flex-start;
-    background: white;
+    background: #fafafa;
+    border-radius: 3px;
 }
 .WorkspaceEditor > * {
     margin: 0.4em;
@@ -56,32 +57,54 @@ body {
 .EntityList > * {
     margin: 0.4em;
     padding: 0 0.3em;
-    background: aliceblue;
+    background: #f2f2f2;
     cursor: pointer;
+    border-radius: 3px;
+    border: 1px solid darkgrey;
 }
 
 .EntityList .selected {
-    background: yellow;
-    transition: background-color ease-out 0.2s;
+    background: #64ff7a;
 }
 
-.EntityListControls > * {
-    display: block;
+.EntityList .locked {
+    background: #fffa00;
 }
 
 .EntityListControls {
-    align-self: flex-start;
+    text-align: center;
+    flex-basis: 100px;
+    flex-grow: 0;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0.8em;
+    align-self: stretch;
+    background: white;
 }
 
 .EntityListControls > * {
+    margin-top: 0.8em;
     width: 100%;
-    margin-bottom: 0.8em;
 }
+
+.EntityListControls > button {
+}
+
+.EntityListControls > *:first-child {
+    font-size: 23px;
+    margin: 0.2em 0;
+    font-family: monospace;
+}
+
 
 .EntityProperties {
     flex-basis: 300px;
     flex-grow: 0;
     flex-shrink: 0;
+    align-self: stretch;
+    padding: 0.8em;
+    margin: 0;
+    background: #f6f6f6;
 }
 
 .EntityProperties > div {
@@ -92,6 +115,7 @@ body {
     display: block;
     margin-bottom: 1em;
     color: #787878;
+    font-family: monospace;
 }
 .EntityProperties > div > *:last-child {
     align-self: center;
