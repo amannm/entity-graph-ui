@@ -56,6 +56,10 @@ body {
     cursor: pointer;
 }
 
+.QueryResults .selected {
+    background: #9be5ff;
+}
+
 
 .EditorContainer {
     background: #e4e4e4;
@@ -91,23 +95,23 @@ body {
 .EntityList > * {
     margin: 0.4em;
     padding: 0 0.3em;
-    background: #f2f2f2;
+    background: #e5e5e5;
     cursor: pointer;
     border-radius: 3px;
-    border: 1px solid darkgrey;
+    border: 3px solid #e5e5e5;
 }
 
-.selected {
-    border: 5px solid #ea702f;
+.EntityList .selected {
+    border: 3px solid #ff3e0b;
 }
 
-.highlighted {
-    background: #fff2a8;
+.EntityList .highlighted {
+    background: #9be5ff;
 }
 
 .EntityList .locked {
     background: #fffa00;
-    transition: all ease-out 1s;
+    transition: all ease-out 0.5s;
 }
 
 .EntityListControls {
