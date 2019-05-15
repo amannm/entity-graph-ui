@@ -1,5 +1,3 @@
-let _nextId = 100;
-
 class EntityManager {
 
     static getTypes() {
@@ -51,7 +49,6 @@ class EntityManager {
 
     }
 
-
     static dedupe(entityList, idKey) {
         const results = {};
         return entityList.map(e => {
@@ -66,50 +63,17 @@ class EntityManager {
         }).filter(e => e !== null);
     }
 
-    static get(url, successHandler) {
+    static get(url, handler) {
         const request = new XMLHttpRequest();
         request.open("GET", url, true);
         request.onload = () => {
             switch (request.status) {
                 case 200:
                     const object = JSON.parse(request.responseText);
-                    successHandler(object);
+                    handler(object);
                     break;
                 case 404:
-                default:
-                    throw 'unexpected response code: ' + request.status;
-            }
-        };
-        request.send();
-    }
-
-    static put(entityType, entity, successHandler) {
-        const putUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entity[entityType.idProperty];
-        const jsonString = JSON.stringify(entity);
-        const request = new XMLHttpRequest();
-        request.open("PUT", putUrl, true);
-        request.setRequestHeader('Content-Type','application/json');
-        request.onload = () => {
-            switch (request.status) {
-                case 200:
-                case 201:
-                    successHandler();
-                    break;
-                default:
-                    throw 'unexpected response code: ' + request.status;
-            }
-        };
-        request.send(jsonString);
-    }
-
-    static delete(entityType, entityId, successHandler) {
-        const deleteUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entityId;
-        const request = new XMLHttpRequest();
-        request.open("DELETE", deleteUrl, true);
-        request.onload = () => {
-            switch (request.status) {
-                case 204:
-                    successHandler();
+                    handler(null);
                     break;
                 default:
                     throw 'unexpected response code: ' + request.status;
@@ -118,6 +82,10 @@ class EntityManager {
         request.send();
     }
 
+    static getById(entityType, entityId, successHandler) {
+        const getUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entityId;
+        this.get(getUrl, successHandler);
+    }
 
     static getAll(entityType, resultHandler) {
         const listUrl = "http://localhost:8080/graph/" + entityType.id + "s";
@@ -140,8 +108,42 @@ class EntityManager {
                     }
                 });
             })
-
         });
+    }
+
+    static put(entityType, entity, successHandler) {
+        const putUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entity[entityType.idProperty];
+        const jsonString = JSON.stringify(entity);
+        const request = new XMLHttpRequest();
+        request.open("PUT", putUrl, true);
+        request.setRequestHeader('Content-Type','application/json');
+        request.onload = () => {
+            switch (request.status) {
+                case 200:
+                case 201:
+                    successHandler();
+                    break;
+                default:
+                    throw 'unexpected response code: ' + request.status;
+            }
+        };
+        request.send(jsonString);
+    }
+
+    static deleteById(entityType, entityId, successHandler) {
+        const deleteUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entityId;
+        const request = new XMLHttpRequest();
+        request.open("DELETE", deleteUrl, true);
+        request.onload = () => {
+            switch (request.status) {
+                case 204:
+                    successHandler();
+                    break;
+                default:
+                    throw 'unexpected response code: ' + request.status;
+            }
+        };
+        request.send();
     }
 
     static debounce(callback, wait) {
@@ -313,12 +315,6 @@ class EntityManager {
             default:
                 throw 'unsupported entity type: ' + entityType;
         }
-    }
-
-    static nextId() {
-        const id = _nextId;
-        _nextId = _nextId + 1;
-        return id;
     }
 
     //https://gist.github.com/jed/982883

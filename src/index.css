@@ -69,6 +69,7 @@ body {
 
 .EntityList .locked {
     background: #fffa00;
+    transition: all ease-out 1s;
 }
 
 .EntityListControls {
@@ -87,17 +88,13 @@ body {
     width: 100%;
 }
 
-.EntityListControls > button {
-}
-
 .EntityListControls > *:first-child {
     font-size: 23px;
     margin: 0.2em 0;
     font-family: monospace;
 }
 
-
-.EntityProperties {
+.EntityEditor {
     flex-basis: 300px;
     flex-grow: 0;
     flex-shrink: 0;
@@ -107,21 +104,30 @@ body {
     background: #f6f6f6;
 }
 
-.EntityProperties > div {
-    display: flex;
-    margin-top: 0.5em;
-}
-.EntityProperties > p {
+.EntityEditor > p {
     display: block;
     margin-bottom: 1em;
     color: #787878;
     font-family: monospace;
 }
+
+.EntityEditor > div:last-child {
+    display: flex;
+    justify-content: space-around;
+    padding: 1.5em 0 0.5em 0;
+}
+
+.EntityProperties > div {
+    display: flex;
+    margin-top: 0.5em;
+}
+
 .EntityProperties > div > *:last-child {
     align-self: center;
     margin-left: 1em;
     font-size: smaller;
 }
+
 .EntityProperties > div > *:first-child {
     flex-grow: 1;
     text-align: left;
