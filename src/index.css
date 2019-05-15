@@ -23,6 +23,37 @@ body {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: small;
 }
+
+.QueryContainer {
+    display: flex;
+    justify-content: space-around;
+    height: 250px;
+    align-items: stretch;
+}
+.QueryContainer > * {
+    flex-basis: 50%;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+.QueryEditor {
+    display: flex;
+}
+.QueryEditor > * {
+}
+
+.QueryEditor > textarea {
+    width: 100%;
+}
+
+.QueryResults {
+    overflow: scroll;
+}
+
+.QueryResults > textarea {
+    width: 100%;
+    height: 100%;
+}
+
 .EditorContainer {
     background: #e4e4e4;
     padding: 0.5em;

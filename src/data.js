@@ -1,5 +1,12 @@
 class EntityManager {
 
+    static getDefaultQueryString() {
+        return 'SELECT ?subject ?predicate ?object\n' +
+            'WHERE {\n' +
+            '  ?subject ?predicate ?object\n' +
+            '}\n' +
+            'LIMIT 25'
+    }
     static getTypes() {
         return {
             user: {
@@ -46,7 +53,21 @@ class EntityManager {
     }
 
     static queryGraph(queryString, resultHandler) {
-
+        const queryUrl = "http://localhost:8080/graph/query";
+        const request = new XMLHttpRequest();
+        request.open("POST", queryUrl, true);
+        request.setRequestHeader('Content-Type',"application/sparql-query");
+        request.onload = () => {
+            switch (request.status) {
+                case 200:
+                    const object = JSON.parse(request.responseText);
+                    resultHandler(object);
+                    break;
+                default:
+                    throw 'unexpected response code: ' + request.status;
+            }
+        };
+        request.send(queryString);
     }
 
     static dedupe(entityList, idKey) {

@@ -8,47 +8,99 @@ class EditorContainer extends React.Component {
             key: entityTypeId,
             entityType: entityTypeMap[entityTypeId]
         }));
-        return E("div", null, E("div", {className: "EditorContainer"}, items));
+        return E("div", null,
+            E(QueryContainer, null),
+            E("div", {className: "EditorContainer"}, items)
+        );
     }
 }
 
 class QueryContainer extends React.Component {
     constructor(props) {
         super(props);
+        this.state = {
+            queryString: EntityManager.getDefaultQueryString(),
+            queryResult: null
+        };
+        this.handleQueryUpdate = this.handleQueryUpdate.bind(this);
         this.handleQuerySubmit = this.handleQuerySubmit.bind(this);
     }
 
-    handleQuerySubmit(queryString) {
+    handleQueryUpdate(queryString) {
+        this.setState({
+            queryString: queryString
+        }, null);
+    }
 
+    handleQuerySubmit() {
+        EntityManager.queryGraph(this.state.queryString, (queryResult) => {
+            if (queryResult !== null) {
+                const headers = queryResult.head.vars;
+                const bindingMapper = (binding) => {
+                    return headers.map((header) => {
+                        const item = binding[header];
+                        switch (item.type) {
+                            case "uri":
+                                return "<" + item.value + ">";
+                            case "literal":
+                            default:
+                                return item.value;
+                        }
+                    });
+                };
+                const records = queryResult.results.bindings.map(bindingMapper);
+                this.setState({
+                    queryResult: {
+                        headers: headers,
+                        records: records
+                    }
+                }, null);
+            }
+        });
     }
 
     render() {
         return E("div", {className: "QueryContainer"},
-            E(QueryResults, {className: "QueryResults"}),
-            E(QueryEditor, {className: "QueryEditor"})
+            E(QueryResults, {queryResult: this.state.queryResult}),
+            E(QueryEditor, {
+                queryString: this.state.queryString,
+                handleQueryUpdate: this.handleQueryUpdate,
+                handleQuerySubmit: this.handleQuerySubmit
+            })
         );
     }
 }
 
 class QueryEditor extends React.Component {
-    constructor(props) {
-        super(props);
-    }
-
     render() {
-        return E("textarea", {onChange: (event) => this.props.handleQuerySubmit(event.target.value)});
+        return E("div", {className: "QueryEditor"},
+            E("textarea", {
+                value: this.props.queryString,
+                onChange: (event) => this.props.handleQueryUpdate(event.target.value)
+            }),
+            E("button", {type: "button", onClick: (event) => this.props.handleQuerySubmit()}, "Submit")
+        );
     }
 }
 
 class QueryResults extends React.Component {
-    constructor(props) {
-        super(props);
+    renderTable() {
+        if (this.props.queryResult !== null) {
+
+            const headerRow = E("tr", null, this.props.queryResult.headers.map((header, cellIndex) => E("th", {key: cellIndex}, header)));
+            const tableHeader = E("thead", null, headerRow);
+
+            const recordRows = this.props.queryResult.records.map((record, rowIndex) => E("tr", {key: rowIndex}, record.map((value, cellIndex) => E("td", {key: cellIndex}, value))));
+            const tableBody = E("tbody", null, recordRows);
+
+            return E("table", null, tableHeader, tableBody);
+        }
+        return "No Results";
     }
 
     render() {
-        return E("div", {className: "QueryContainer"},
-            E(QueryResults, {className: "QueryResults"}),
-            E(QueryEditor, {className: "QueryEditor"})
+        return E("div", {className: "QueryResults"},
+            this.renderTable()
         );
     }
 }
@@ -327,8 +379,16 @@ class EntityEditor extends React.Component {
                     handleEntityUpdate: this.props.handleEntityUpdate
                 }),
                 E("div", {className: "EntityEditorControls"},
-                    E("button", {onClick: (e) => { this.props.resetSelectedEntity(); }}, "Reset"),
-                    E("button", {onClick: (e) => { this.props.saveSelectedEntity() }}, "Save")
+                    E("button", {
+                        onClick: (e) => {
+                            this.props.resetSelectedEntity();
+                        }
+                    }, "Reset"),
+                    E("button", {
+                        onClick: (e) => {
+                            this.props.saveSelectedEntity()
+                        }
+                    }, "Save")
                 )
             );
         }
@@ -344,7 +404,7 @@ class EntityProperties extends React.Component {
     }
 
     handlePropertyChange(property, value) {
-        if(!this.props.isLocked) {
+        if (!this.props.isLocked) {
             const newEntity = Object.assign({}, this.props.entity);
             newEntity[property] = value;
             this.props.handleEntityUpdate(newEntity);
