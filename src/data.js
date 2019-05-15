@@ -1,11 +1,11 @@
 class EntityManager {
 
     static getDefaultQueryString() {
-        return 'SELECT ?subject ?predicate ?object\n' +
-            'WHERE {\n' +
-            '  ?subject ?predicate ?object\n' +
-            '}\n' +
-            'LIMIT 25'
+        return "PREFIX cauldron: <http://cauldron.systems/graph#>\n" +
+            "SELECT ?subject\n" +
+            "WHERE {\n" +
+            "  ?subject ?predicate ?object\n" +
+            "}\n";
     }
     static getTypes() {
         return {
@@ -64,7 +64,7 @@ class EntityManager {
                     resultHandler(object);
                     break;
                 default:
-                    throw 'unexpected response code: ' + request.status;
+                    console.log('unexpected response code: ' + request.status);
             }
         };
         request.send(queryString);
@@ -97,7 +97,7 @@ class EntityManager {
                     handler(null);
                     break;
                 default:
-                    throw 'unexpected response code: ' + request.status;
+                    console.log('unexpected response code: ' + request.status);
             }
         };
         request.send();
@@ -145,7 +145,7 @@ class EntityManager {
                     successHandler();
                     break;
                 default:
-                    throw 'unexpected response code: ' + request.status;
+                    console.log('unexpected response code: ' + request.status);
             }
         };
         request.send(jsonString);
@@ -161,10 +161,25 @@ class EntityManager {
                     successHandler();
                     break;
                 default:
-                    throw 'unexpected response code: ' + request.status;
+                    console.log('unexpected response code: ' + request.status);
             }
         };
         request.send();
+    }
+
+    static deleteAll(entityType, entities, successHandler) {
+        let remaining = entities.length;
+        if(remaining === 0) {
+            successHandler();
+        }
+        entities.forEach(entity => {
+            this.deleteById(entityType, entity[entityType.idProperty], () => {
+                remaining--;
+                if(remaining === 0) {
+                    successHandler();
+                }
+            });
+        });
     }
 
     static debounce(callback, wait) {
@@ -179,8 +194,27 @@ class EntityManager {
         }
     }
 
+    static putAllTest(entityType, successHandler) {
+        const entities = this.getAllTest(entityType);
+        let remaining = entities.length;
+        if(remaining === 0) {
+            successHandler();
+        }
+        entities.forEach(entity => {
+            this.put(entityType, entity, ()=>{
+                console.log("entity created: " + entity[entityType.idProperty]);
+                remaining--;
+                if(remaining === 0) {
+                    successHandler();
+                }
+            })
+        });
+    }
+
+
+
     static getAllTest(entityType) {
-        switch (entityType) {
+        switch (entityType.id) {
             case 'user':
                 return [
                     {
@@ -334,7 +368,7 @@ class EntityManager {
                     }
                 ];
             default:
-                throw 'unsupported entity type: ' + entityType;
+                console.log('unexpected response code: ' + request.status);
         }
     }
 

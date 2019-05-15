@@ -1,17 +1,57 @@
 const E = React.createElement;
 
 
+class ApplicationContainer extends React.Component {
+
+    constructor(props) {
+        super(props);
+        this.state = {
+            selectedRecord: null,
+            currentResults: null
+        };
+        this.handleRecordSelect = this.handleRecordSelect.bind(this);
+        this.handleResultsUpdate = this.handleResultsUpdate.bind(this);
+    }
+
+    handleRecordSelect(record) {
+        this.setState({
+            selectedRecord: record
+        });
+    }
+    handleResultsUpdate(results) {
+        this.setState({
+            currentResults: results
+        });
+    }
+
+    render() {
+
+        return E("div", {className: "ApplicationContainer"},
+            E(EditorContainer, {
+                selectedRecord: this.state.selectedRecord,
+                currentResults: this.state.currentResults
+            }),
+            E(QueryContainer, {
+                selectedRecord: this.state.selectedRecord,
+                handleRecordSelect: this.handleRecordSelect,
+                handleResultsUpdate: this.handleResultsUpdate
+            })
+        );
+    }
+}
+
 class EditorContainer extends React.Component {
     render() {
         const entityTypeMap = EntityManager.getTypes();
         const items = Object.keys(entityTypeMap).map(entityTypeId => E(WorkspaceEditor, {
             key: entityTypeId,
-            entityType: entityTypeMap[entityTypeId]
+            entityType: entityTypeMap[entityTypeId],
+            selectedRecord: this.props.selectedRecord,
+            currentResults: this.props.currentResults
         }));
-        return E("div", null,
-            E(QueryContainer, null),
-            E("div", {className: "EditorContainer"}, items)
-        );
+        return E("div", {
+            className: "EditorContainer"
+        }, items)
     }
 }
 
@@ -33,35 +73,45 @@ class QueryContainer extends React.Component {
     }
 
     handleQuerySubmit() {
-        EntityManager.queryGraph(this.state.queryString, (queryResult) => {
-            if (queryResult !== null) {
-                const headers = queryResult.head.vars;
+        EntityManager.queryGraph(this.state.queryString, (sparqlQueryResult) => {
+            if (sparqlQueryResult !== null) {
+                const headers = sparqlQueryResult.head.vars;
                 const bindingMapper = (binding) => {
                     return headers.map((header) => {
-                        const item = binding[header];
-                        switch (item.type) {
-                            case "uri":
-                                return "<" + item.value + ">";
-                            case "literal":
-                            default:
-                                return item.value;
+                        if(binding.hasOwnProperty(header)) {
+                            const item = binding[header];
+                            switch (item.type) {
+                                case "uri":
+                                    return "<" + item.value + ">";
+                                case "literal":
+                                default:
+                                    return item.value;
+                            }
+                        } else {
+                            return null;
                         }
                     });
                 };
-                const records = queryResult.results.bindings.map(bindingMapper);
+                const records = sparqlQueryResult.results.bindings.map(bindingMapper);
+                const queryResult = {
+                    headers: headers,
+                    records: records
+                };
                 this.setState({
-                    queryResult: {
-                        headers: headers,
-                        records: records
-                    }
+                    queryResult: queryResult
                 }, null);
+                this.props.handleResultsUpdate(queryResult);
             }
         });
     }
 
     render() {
         return E("div", {className: "QueryContainer"},
-            E(QueryResults, {queryResult: this.state.queryResult}),
+            E(QueryResults, {
+                queryResult: this.state.queryResult,
+                selectedRecord: this.props.selectedRecord,
+                handleRecordSelect: this.props.handleRecordSelect
+            }),
             E(QueryEditor, {
                 queryString: this.state.queryString,
                 handleQueryUpdate: this.handleQueryUpdate,
@@ -90,7 +140,13 @@ class QueryResults extends React.Component {
             const headerRow = E("tr", null, this.props.queryResult.headers.map((header, cellIndex) => E("th", {key: cellIndex}, header)));
             const tableHeader = E("thead", null, headerRow);
 
-            const recordRows = this.props.queryResult.records.map((record, rowIndex) => E("tr", {key: rowIndex}, record.map((value, cellIndex) => E("td", {key: cellIndex}, value))));
+            const recordRows = this.props.queryResult.records.map((record, rowIndex) => E("tr", {
+                key: rowIndex,
+                className: this.props.selectedRecord === record ? "selected" : "",
+                onClick: (e) => {
+                    this.props.handleRecordSelect(record);
+                }
+            }, record.map((value, cellIndex) => E("td", {key: cellIndex}, value))));
             const tableBody = E("tbody", null, recordRows);
 
             return E("table", null, tableHeader, tableBody);
@@ -116,9 +172,7 @@ class WorkspaceEditor extends React.Component {
         };
         EntityManager.getAll(props.entityType, (rawEntities) => {
             const entities = EntityManager.dedupe(rawEntities, props.entityType.idProperty);
-            const selectedEntityId = entities.length > 0 ? entities[0][props.entityType.idProperty] : null;
             this.setState({
-                selectedEntityId: selectedEntityId,
                 entities: entities
             }, null);
         });
@@ -128,6 +182,25 @@ class WorkspaceEditor extends React.Component {
         this.resetSelectedEntity = this.resetSelectedEntity.bind(this);
         this.deleteSelectedEntity = this.deleteSelectedEntity.bind(this);
         this.saveSelectedEntity = this.saveSelectedEntity.bind(this);
+        this.handleTestReset = this.handleTestReset.bind(this);
+    }
+
+    handleTestReset() {
+        this.setState({
+            selectedEntityId: null,
+            entities: [],
+            lockedEntityIds: new Set()
+        }, null);
+        EntityManager.deleteAll(this.props.entityType, this.state.entities, () => {
+            EntityManager.putAllTest(this.props.entityType, () => {
+                EntityManager.getAll(this.props.entityType, (rawEntities) => {
+                    const entities = EntityManager.dedupe(rawEntities, this.props.entityType.idProperty);
+                    this.setState({
+                        entities: entities
+                    }, null);
+                });
+            });
+        });
     }
 
     handleEntitySelect(entityId) {
@@ -206,38 +279,20 @@ class WorkspaceEditor extends React.Component {
 
     deleteSelectedEntity() {
         if (this.state.selectedEntityId !== null) {
-            if (this.state.lockedEntityIds.has(this.state.selectedEntityId)) {
+            const entityId = this.state.selectedEntityId;
+            if (this.state.lockedEntityIds.has(entityId)) {
                 return;
             }
             this.setState({
-                lockedEntityIds: (new Set(this.state.lockedEntityIds)).add(this.state.selectedEntityId)
+                lockedEntityIds: (new Set(this.state.lockedEntityIds)).add(entityId)
             }, null);
             const entityType = this.props.entityType;
-            EntityManager.deleteById(entityType, this.state.selectedEntityId, () => {
-                let indexToSelect = null;
-                const newEntities = [];
-                for (let i = 0; i < this.state.entities.length; i++) {
-                    const entity = this.state.entities[i];
-                    if (entity[entityType.idProperty] !== this.state.selectedEntityId) {
-                        newEntities.push(entity);
-                    } else {
-                        if (this.state.entities.length !== 1) {
-                            if (i === 0) {
-                                indexToSelect = i;
-                            } else {
-                                indexToSelect = i - 1;
-                            }
-                        }
-                    }
-                }
-                let nextEntityId = null;
-                if (indexToSelect !== null) {
-                    nextEntityId = newEntities[indexToSelect][entityType.idProperty];
-                }
+            EntityManager.deleteById(entityType, entityId, () => {
+                const newEntities = this.state.entities.filter(entity => entity[entityType.idProperty] !== entityId);
                 const newLockedEntityIds = new Set(this.state.lockedEntityIds);
-                newLockedEntityIds.delete(this.state.selectedEntityId);
+                newLockedEntityIds.delete(entityId);
                 this.setState({
-                    selectedEntityId: nextEntityId,
+                    selectedEntityId: null,
                     entities: newEntities,
                     lockedEntityIds: newLockedEntityIds
                 }, null);
@@ -265,14 +320,14 @@ class WorkspaceEditor extends React.Component {
                     }
                 }).filter(e => e !== null);
                 const newLockedEntityIds = new Set(this.state.lockedEntityIds);
-                newLockedEntityIds.delete(this.state.selectedEntityId);
+                newLockedEntityIds.delete(entityId);
                 this.setState({
                     entities: newEntities,
                     lockedEntityIds: newLockedEntityIds
                 }, null);
             });
             this.setState({
-                selectedEntityId: entityId
+                selectedEntityId: null
             }, null);
         }
     }
@@ -302,7 +357,8 @@ class WorkspaceEditor extends React.Component {
         const entityListControls = E("div", {className: "EntityListControls"},
             E("p", null, this.props.entityType.displayName),
             E("button", {type: "button", onClick: this.handleEntityCreate}, "Create"),
-            E("button", {type: "button", onClick: this.deleteSelectedEntity}, "Delete")
+            E("button", {type: "button", onClick: this.deleteSelectedEntity}, "Delete"),
+            E("button", {type: "button", onClick: this.handleTestReset}, "Reset")
         );
 
         const entityList = E(EntityList, {
@@ -310,7 +366,9 @@ class WorkspaceEditor extends React.Component {
             selectedEntityId: this.state.selectedEntityId,
             entities: this.state.entities,
             lockedEntityIds: this.state.lockedEntityIds,
-            handleEntitySelect: this.handleEntitySelect
+            handleEntitySelect: this.handleEntitySelect,
+            selectedRecord: this.props.selectedRecord,
+            currentResults: this.props.currentResults
         });
 
         const entityEditor = E(EntityEditor, {
@@ -340,6 +398,12 @@ class EntityList extends React.Component {
             const itemMapper = (entity) => {
                 const entityId = entity[idProperty];
                 const classNames = [];
+                if (this.props.currentResults !== null) {
+                    //TODO: this is imprecise and expensive
+                    if(this.props.currentResults.records.some(record => record.filter(v => v !== null).some(recordValue => recordValue.includes(entityId)))) {
+                        classNames.push("highlighted");
+                    }
+                }
                 if (entityId === this.props.selectedEntityId) {
                     classNames.push("selected");
                 }
@@ -367,7 +431,7 @@ class EntityList extends React.Component {
 
 class EntityEditor extends React.Component {
     render() {
-        if (this.props.selectedEntityId) {
+        if (this.props.selectedEntityId !== null) {
             const entityType = this.props.entityType;
             const currentEntity = this.props.entities.find(entity => entity[entityType.idProperty] === this.props.selectedEntityId);
             return E("div", {className: "EntityEditor"},
@@ -383,7 +447,7 @@ class EntityEditor extends React.Component {
                         onClick: (e) => {
                             this.props.resetSelectedEntity();
                         }
-                    }, "Reset"),
+                    }, "Cancel"),
                     E("button", {
                         onClick: (e) => {
                             this.props.saveSelectedEntity()
