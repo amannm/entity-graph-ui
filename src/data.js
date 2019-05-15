@@ -1,7 +1,11 @@
 class EntityManager {
 
+    static getApiRoot() {
+        return "http://localhost:8080/graph/";
+    }
+
     static getDefaultQueryString() {
-        return "PREFIX cauldron: <http://cauldron.systems/graph#>\n" +
+        return "PREFIX : <http://cauldron.systems/graph#>\n" +
             "SELECT ?subject\n" +
             "WHERE {\n" +
             "  ?subject ?predicate ?object\n" +
@@ -53,7 +57,7 @@ class EntityManager {
     }
 
     static queryGraph(queryString, resultHandler) {
-        const queryUrl = "http://localhost:8080/graph/query";
+        const queryUrl = this.getApiRoot() + "query";
         const request = new XMLHttpRequest();
         request.open("POST", queryUrl, true);
         request.setRequestHeader('Content-Type',"application/sparql-query");
@@ -104,12 +108,12 @@ class EntityManager {
     }
 
     static getById(entityType, entityId, successHandler) {
-        const getUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entityId;
+        const getUrl = this.getApiRoot() + entityType.id + "s/" + entityId;
         this.get(getUrl, successHandler);
     }
 
     static getAll(entityType, resultHandler) {
-        const listUrl = "http://localhost:8080/graph/" + entityType.id + "s";
+        const listUrl = this.getApiRoot() + entityType.id + "s";
         let entityCount = 0;
         const result = [];
         this.get(listUrl, (array) => {
@@ -133,7 +137,7 @@ class EntityManager {
     }
 
     static put(entityType, entity, successHandler) {
-        const putUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entity[entityType.idProperty];
+        const putUrl = this.getApiRoot() + entityType.id + "s/" + entity[entityType.idProperty];
         const jsonString = JSON.stringify(entity);
         const request = new XMLHttpRequest();
         request.open("PUT", putUrl, true);
@@ -152,7 +156,7 @@ class EntityManager {
     }
 
     static deleteById(entityType, entityId, successHandler) {
-        const deleteUrl = "http://localhost:8080/graph/" + entityType.id + "s/" + entityId;
+        const deleteUrl = this.getApiRoot() + entityType.id + "s/" + entityId;
         const request = new XMLHttpRequest();
         request.open("DELETE", deleteUrl, true);
         request.onload = () => {

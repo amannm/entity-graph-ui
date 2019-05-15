@@ -29,6 +29,7 @@ body {
     justify-content: space-around;
     height: 250px;
     align-items: stretch;
+    padding: 0.8em;
 }
 .QueryContainer > * {
     flex-basis: 50%;
@@ -37,6 +38,7 @@ body {
 }
 .QueryEditor {
     display: flex;
+    padding-left: 0.8em;
 }
 .QueryEditor > * {
 }
@@ -47,6 +49,7 @@ body {
 
 .QueryResults {
     overflow: scroll;
+    padding: 0.8em;
 }
 
 .QueryResults td {
@@ -95,11 +98,13 @@ body {
 }
 
 .selected {
-    background: #64ff7a;
+    border: 5px solid #ea702f;
 }
+
 .highlighted {
-    border: 5px solid #ffe634;
+    background: #fff2a8;
 }
+
 .EntityList .locked {
     background: #fffa00;
     transition: all ease-out 1s;

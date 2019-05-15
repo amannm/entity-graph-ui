@@ -27,14 +27,14 @@ class ApplicationContainer extends React.Component {
     render() {
 
         return E("div", {className: "ApplicationContainer"},
-            E(EditorContainer, {
-                selectedRecord: this.state.selectedRecord,
-                currentResults: this.state.currentResults
-            }),
             E(QueryContainer, {
                 selectedRecord: this.state.selectedRecord,
                 handleRecordSelect: this.handleRecordSelect,
                 handleResultsUpdate: this.handleResultsUpdate
+            }),
+            E(EditorContainer, {
+                selectedRecord: this.state.selectedRecord,
+                currentResults: this.state.currentResults
             })
         );
     }
@@ -172,7 +172,9 @@ class WorkspaceEditor extends React.Component {
         };
         EntityManager.getAll(props.entityType, (rawEntities) => {
             const entities = EntityManager.dedupe(rawEntities, props.entityType.idProperty);
+            const selectedEntityId = entities.length > 0 ? entities[0][props.entityType.idProperty] : null;
             this.setState({
+                selectedEntityId: selectedEntityId,
                 entities: entities
             }, null);
         });
@@ -195,7 +197,9 @@ class WorkspaceEditor extends React.Component {
             EntityManager.putAllTest(this.props.entityType, () => {
                 EntityManager.getAll(this.props.entityType, (rawEntities) => {
                     const entities = EntityManager.dedupe(rawEntities, this.props.entityType.idProperty);
+                    const selectedEntityId = entities.length > 0 ? entities[0][this.props.entityType.idProperty] : null;
                     this.setState({
+                        selectedEntityId: selectedEntityId,
                         entities: entities
                     }, null);
                 });
@@ -288,11 +292,31 @@ class WorkspaceEditor extends React.Component {
             }, null);
             const entityType = this.props.entityType;
             EntityManager.deleteById(entityType, entityId, () => {
-                const newEntities = this.state.entities.filter(entity => entity[entityType.idProperty] !== entityId);
+                const currentEntities = this.state.entities;
+                let indexToSelect = null;
+                const newEntities = [];
+                for (let i = 0; i < currentEntities.length; i++) {
+                    const entity = currentEntities[i];
+                    if (entity[entityType.idProperty] !== entityId) {
+                        newEntities.push(entity);
+                    } else {
+                        if (currentEntities.length !== 1) {
+                            if (i === 0) {
+                                indexToSelect = i;
+                            } else {
+                                indexToSelect = i - 1;
+                            }
+                        }
+                    }
+                }
+                let nextEntityId = null;
+                if (indexToSelect !== null) {
+                    nextEntityId = newEntities[indexToSelect][entityType.idProperty];
+                }
                 const newLockedEntityIds = new Set(this.state.lockedEntityIds);
                 newLockedEntityIds.delete(entityId);
                 this.setState({
-                    selectedEntityId: null,
+                    selectedEntityId: nextEntityId,
                     entities: newEntities,
                     lockedEntityIds: newLockedEntityIds
                 }, null);
