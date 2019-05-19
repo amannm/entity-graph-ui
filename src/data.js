@@ -1,7 +1,7 @@
 class EntityManager {
 
     static getApiRoot() {
-        return "http://api.cauldron.systems/graph/";
+        return "https://api.cauldron.systems/graph/";
     }
 
     static getDefaultQueryString() {
